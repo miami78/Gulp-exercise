@@ -1,58 +1,44 @@
-// Initialize modules
-const { src, dest, watch, series, parallel } = require('gulp');
-// Importing all the Gulp-related packages we want to use
-const browsersync = require('browser-sync').create();
-const concat = require('gulp-concat');   //concatenates multiple JS files into one file
-const uglify = require('gulp-uglify');   //minifies JS
-const babel = require('gulp-babel');
+const gulp = require('gulp');
 const jshint = require('gulp-jshint');
+const babel = require('gulp-babel');
+const uglify = require('gulp-uglify');
+const webpack = require('webpack-stream');
+const named = require('vinyl-named')
+const browserSync = require('browser-sync').create();
 
+gulp.task('processHTML', function (done) {
+    gulp.src('*.html')
+        .pipe(gulp.dest('dist'));
+    done();
+});
 
+gulp.task('processImages', function (done) {
+    gulp.src('images/**.svg')
+        .pipe(gulp.dest('dist/images'));
+    done();
+});
 
-// File paths
-const files = {
-    jsPath: './js/*.js',
-    htmlPath: '*.html'
-};
-
-// JS task: concatenates and transpiles JS files to all.js
-function jsTask() {
-    return src([
-        files.jsPath
-    ])
+gulp.task('processJS', function (done) {
+    gulp.src(['*.js', '!gulpfile.js'])
         .pipe(jshint({
             esversion: 8
         }))
         .pipe(jshint.reporter('default'))
-        .pipe(babel({
-            presets: [
-                "@babel/preset-env"
-            ]
-        }))
-        .pipe(concat('all.js'))
-        .pipe(uglify())
-        .pipe(dest('dist')
-        );
-}
-//HTML  task
-function htmlTask() {
-    return src([
-        files.htmlPath
-    ])
-        .pipe(dest('dist'));
-}
+        .pipe(babel())
+        .pipe(named())
+        .pipe(webpack())
+        // .pipe(uglify())
+        .pipe(gulp.dest('dist'));
+    done();
+});
 
+// gulp.task('babelPolyfill', () => {
+//     gulp.src('node_modules/babel-polyfill/browser.js')
+//         .pipe(gulp.dest('dist/node_modules/babel-polyfill'));
+// });
 
-// Watch task: watch JS files for changes
-// If any change, run  js tasks 
-function watchTask() {
-    watch([files.jsPath, files.htmlPath],
-        parallel(jsTask, htmlTask));
-}
-
-// Init BrowserSync.
-function browserSync(done) {
-    browsersync.init({
+gulp.task('browserSync', function (done) {
+    browserSync.init({
         server: './dist',
         port: 8080,
         ui: {
@@ -60,11 +46,17 @@ function browserSync(done) {
         }
     });
     done();
-}
+});
 
-// Runs the html and js tasks simultaneously
-// then watch task
-exports.default = series(
-    parallel(htmlTask, jsTask),
-    browserSync,
-    watchTask);
+gulp.task('watch', gulp.series('browserSync', function (done) {
+    gulp.watch(['*.js', '!gulpfile.js'], gulp.series('processJS'));
+    gulp.watch('*.html', gulp.series('processHTML'));
+    gulp.watch('dist/*.js', browserSync.reload);
+    gulp.watch('dist/*.html', browserSync.reload);
+
+    done();
+}));
+
+gulp.task('default', gulp.series('processJS', 'processHTML', 'processImages', 'watch', function (done) {
+    done();
+}));
