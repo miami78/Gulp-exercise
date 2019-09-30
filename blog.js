@@ -1,4 +1,4 @@
-const api = 'https://master-7rqtwti-fus3tltfddn7w.eu-2.platformsh.site';
+const api = 'https://us-central1-open-classrooms-js-for-the-web.cloudfunctions.net/widgets';
 const loadButton = document.getElementById('load-button');
 
 function getRequest(url) {
